@@ -1,0 +1,31 @@
+import re
+
+with open('lib/providers/server_provider.dart', 'r', encoding='utf-8') as f:
+    code = f.read()
+
+# Add UnraidWebClient
+if "UnraidWebClient" not in code:
+    code = code.replace("import '../api/portainer_client.dart';", "import '../api/portainer_client.dart';\nimport '../api/unraid_web_client.dart';")
+    code = code.replace("final PortainerClient _portainer = PortainerClient();", "final PortainerClient _portainer = PortainerClient();\n  final UnraidWebClient _unraidNative = UnraidWebClient();")
+
+# Add VM list state
+if "List<dynamic> vms = [];" not in code:
+    code = code.replace("List<dynamic> dockerContainers = [];", "List<dynamic> dockerContainers = [];\n  List<dynamic> vms = [];\n  String rawVmResponse = '';")
+
+# Fetch VMs silent
+fetch_vms_code = """
+    // Fetch VMs from Native WebGUI
+    final vmResult = await _unraidNative.getVms();
+    if (vmResult != null && vmResult.containsKey('raw')) {
+       rawVmResponse = 'Successfully connected to Unraid WebGUI. Raw data received.';
+       // We will need to parse the raw html/json later.
+    } else if (vmResult != null && vmResult.containsKey('error')) {
+       rawVmResponse = vmResult['error'];
+    }
+"""
+
+code = code.replace("isLoading = false;", fetch_vms_code + "\n    isLoading = false;")
+
+with open('lib/providers/server_provider.dart', 'w', encoding='utf-8') as f:
+    f.write(code)
+
