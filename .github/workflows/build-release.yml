@@ -1,0 +1,61 @@
+name: Build and Release APK
+
+on:
+  # Manual trigger from GitHub Actions UI
+  workflow_dispatch:
+
+  # Auto publish on every push to main (build + create/update Release)
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.5'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK (release)
+        run: flutter build apk --release
+
+      - name: Read app version from pubspec.yaml
+        id: ver
+        shell: bash
+        run: |
+          VERSION_LINE=$(grep -E '^version:' pubspec.yaml | head -n 1 | awk '{print $2}')
+          # pubspec: 2.1.4+44  -> tag: v2.1.4
+          VERSION_NAME=${VERSION_LINE%%+*}
+          echo "version_line=$VERSION_LINE" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create/Update GitHub Release (attach APK)
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.ver.outputs.version_name }}
+          name: Unraid-APP v${{ steps.ver.outputs.version_name }}
+          prerelease: true
+          allowUpdates: true
+          replacesArtifacts: true
+          generateReleaseNotes: true
+          artifacts: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
