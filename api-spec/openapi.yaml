@@ -1,0 +1,447 @@
+openapi: 3.0.0
+info:
+  title: UnraidAPI
+  description: API for managing Unraid servers
+  version: 1.0.0
+  contact:
+    name: ElectricBrainUK
+    url: https://github.com/ElectricBrainUK/UnraidAPI
+
+servers:
+  - url: http://{server}:{port}/api
+    description: UnraidAPI server
+    variables:
+      server:
+        default: localhost
+        description: Unraid server IP or hostname
+      port:
+        default: "8080"
+        description: API port
+
+security:
+  - bearerAuth: []
+  - apiKey: []
+
+paths:
+  /login:
+    post:
+      summary: User authentication
+      operationId: login
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+
+  /getServers:
+    get:
+      summary: Get list of servers
+      operationId: getServers
+      tags:
+        - Servers
+      responses:
+        '200':
+          description: List of servers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Server'
+
+  /changeServerStatus:
+    post:
+      summary: Change server power state
+      operationId: changeServerStatus
+      tags:
+        - Servers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - serverId
+                - action
+              properties:
+                serverId:
+                  type: string
+                action:
+                  type: string
+                  enum: [start, stop, restart, shutdown]
+      responses:
+        '200':
+          description: Action initiated
+        '400':
+          description: Invalid action
+
+  /changeDockerStatus:
+    post:
+      summary: Control Docker container
+      operationId: changeDockerStatus
+      tags:
+        - Docker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - containerId
+                - action
+              properties:
+                containerId:
+                  type: string
+                action:
+                  type: string
+                  enum: [start, stop, restart, pause, unpause]
+      responses:
+        '200':
+          description: Action initiated
+        '404':
+          description: Container not found
+
+  /changeVMStatus:
+    post:
+      summary: Control virtual machine
+      operationId: changeVMStatus
+      tags:
+        - VM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vmId
+                - action
+              properties:
+                vmId:
+                  type: string
+                action:
+                  type: string
+                  enum: [start, stop, restart, pause, resume]
+      responses:
+        '200':
+          description: Action initiated
+        '404':
+          description: VM not found
+
+  /createVM:
+    post:
+      summary: Create new virtual machine
+      operationId: createVM
+      tags:
+        - VM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VMConfig'
+      responses:
+        '201':
+          description: VM created
+        '400':
+          description: Invalid configuration
+
+  /editVM:
+    post:
+      summary: Edit virtual machine configuration
+      operationId: editVM
+      tags:
+        - VM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vmId
+                - config
+              properties:
+                vmId:
+                  type: string
+                config:
+                  $ref: '#/components/schemas/VMConfig'
+      responses:
+        '200':
+          description: VM updated
+        '404':
+          description: VM not found
+
+  /changeArrayStatus:
+    post:
+      summary: Control disk array
+      operationId: changeArrayStatus
+      tags:
+        - Storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - action
+              properties:
+                action:
+                  type: string
+                  enum: [start, stop]
+      responses:
+        '200':
+          description: Action initiated
+
+  /mqttDevices:
+    get:
+      summary: Get MQTT devices
+      operationId: getMqttDevices
+      tags:
+        - Devices
+      responses:
+        '200':
+          description: List of MQTT devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MqttDevice'
+
+  /gpuSwap:
+    post:
+      summary: Swap GPU between VMs
+      operationId: gpuSwap
+      tags:
+        - Devices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sourceVM
+                - targetVM
+                - gpuId
+              properties:
+                sourceVM:
+                  type: string
+                targetVM:
+                  type: string
+                gpuId:
+                  type: string
+      responses:
+        '200':
+          description: GPU swapped
+
+  /pciAttach:
+    post:
+      summary: Attach PCI device to VM
+      operationId: pciAttach
+      tags:
+        - Devices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vmId
+                - pciId
+              properties:
+                vmId:
+                  type: string
+                pciId:
+                  type: string
+      responses:
+        '200':
+          description: Device attached
+
+  /usbAttach:
+    post:
+      summary: Attach USB device to VM
+      operationId: usbAttach
+      tags:
+        - Devices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - vmId
+                - usbId
+              properties:
+                vmId:
+                  type: string
+                usbId:
+                  type: string
+      responses:
+        '200':
+          description: Device attached
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          type: string
+
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ip:
+          type: string
+        port:
+          type: integer
+        status:
+          type: string
+          enum: [online, offline, starting, stopping]
+        version:
+          type: string
+        uptime:
+          type: integer
+        cpu:
+          $ref: '#/components/schemas/CPU'
+        memory:
+          $ref: '#/components/schemas/Memory'
+        disk:
+          $ref: '#/components/schemas/Disk'
+
+    CPU:
+      type: object
+      properties:
+        usage:
+          type: number
+          minimum: 0
+          maximum: 100
+        cores:
+          type: integer
+        temperature:
+          type: number
+
+    Memory:
+      type: object
+      properties:
+        total:
+          type: integer
+        used:
+          type: integer
+        free:
+          type: integer
+        usage:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    Disk:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        path:
+          type: string
+        size:
+          type: integer
+        used:
+          type: integer
+        free:
+          type: integer
+        temperature:
+          type: number
+        health:
+          type: string
+          enum: [healthy, warning, error]
+
+    VMConfig:
+      type: object
+      properties:
+        name:
+          type: string
+        cpuCores:
+          type: integer
+        memory:
+          type: integer
+        disk:
+          type: integer
+        gpu:
+          type: array
+          items:
+            type: string
+        usb:
+          type: array
+          items:
+            type: string
+        pci:
+          type: array
+          items:
+            type: string
+
+    MqttDevice:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        state:
+          type: string
